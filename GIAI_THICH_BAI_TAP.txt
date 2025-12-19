@@ -1,0 +1,107 @@
+GIẢI THÍCH CÁCH LÀM BÀI TẬP FULLSTACK - TUẦN 11
+================================================
+
+YÊU CẦU BÀI TẬP:
+-----------------
+Backend:
+1. Create: Tuổi là số nguyên, email duy nhất
+2. Get: Sử dụng Promise.all cho truy vấn song song (find và countDocument)
+
+Frontend:
+1. Số thứ tự tăng theo page, thay vì bắt đầu lại ở mỗi page
+2. Chuẩn hóa dữ liệu đầu vào trước khi gửi Backend (loại bỏ khoảng trắng)
+
+
+BACKEND - CÁCH LÀM:
+====================
+
+1. YÊU CẦU: CREATE - TUỔI LÀ SỐ NGUYÊN, EMAIL DUY NHẤT
+------------------------------------------------------
+File: backend/server.js - API POST /api/users
+
+Bước 1: Chuẩn hóa và chuyển đổi dữ liệu đầu vào
+
+
+
+Bước 2: Validate dữ liệu
+
+if (!trimmedName || trimmedName.length < 2) {
+  return res.status(400).json({ error: "Tên phải có ít nhất 2 ký tự" });
+}
+if (isNaN(parsedAge) || parsedAge < 1) {  
+  return res.status(400).json({ error: "Tuổi phải là số dương >= 1" });
+}
+if (!trimmedEmail || !trimmedEmail.includes("@") || !trimmedEmail.includes(".")) {
+  return res.status(400).json({ error: "Email không hợp lệ" });
+}
+```
+
+GBước 3: Kiểm tra email duy nhất
+
+const existingUser = await User.findOne({ email: trimmedEmail });  
+if (existingUser) {
+  return res.status(400).json({ error: "Email đã tồn tại" });
+}
+
+
+
+Bước 4: Tạo user mới với dữ liệu đã chuẩn hóa
+
+const newUser = await User.create({ 
+  name: trimmedName, 
+  age: parsedAge,  
+  email: trimmedEmail, 
+  address: trimmedAddress 
+});
+
+
+2. YÊU CẦU: GET - SỬ DỤNG PROMISE.ALL CHO TRUY VẤN SONG SONG
+------------------------------------------------------------
+File: backend/server.js - API GET /api/users
+
+Cách cũ (tuần tự - chậm):
+
+Cách mới (song song - nhanh):
+```javascript
+const [users, total] = await Promise.all([
+  User.find(filter).skip(skip).limit(limit),  // Query 1
+  User.countDocuments(filter)  // Query 2
+]);
+```
+
+Giải thích:
+- Promise.all([...]): Chạy 2 query cùng lúc (song song)
+- Destructuring [users, total]: Lấy kết quả từ mảng
+- Ưu điểm: Nhanh hơn 2 lần vì 2 query chạy đồng thời thay vì tuần tự
+
+
+
+
+
+
+1. YÊU CẦU: SỐ THỨ TỰ TĂNG THEO PAGE
+-------------------------------------
+Cách mới (STT tăng liên tục):
+
+<td>{(page - 1) * limit + index + 1}</td>
+
+
+Giải thích:
+- (page - 1) * limit: Số phần tử đã hiển thị ở các page trước
+- + index: Vị trí trong page hiện tại (0, 1, 2, ...)
+- + 1: Đổi từ index 0 sang STT bắt đầu từ 1
+
+2. YÊU CẦU: CHUẨN HÓA DỮ LIỆU ĐẦU VÀO (LOẠI BỎ KHOẢNG TRẮNG)
+-----------------------------------------------------------
+File: frontend/index.html - Component UserModal, hàm handleSubmit
+
+Bước 1: Trim khoảng trắng và chuyển đổi kiểu dữ liệu
+
+- .trim(): Loại bỏ khoảng trắng đầu cuối
+  Ví dụ: "  John Doe  " → "John Doe"
+- parseInt(formData.age): Chuyển string thành số nguyên
+  Ví dụ: "25" → 25
+- .toLowerCase(): Chuẩn hóa email về chữ thường
+  Ví dụ: "Test@Gmail.COM" → "test@gmail.com"
+
+Bước 2: Gửi dữ liệu đã chuẩn hóa lên Backend
